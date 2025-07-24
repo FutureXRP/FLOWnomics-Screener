@@ -4,19 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FLOWnomics Crypto Screener</title>
-  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js"></script>
+  <!-- Local dependencies (download these files and place in /libs) -->
+  <script src="/libs/react.production.min.js"></script>
+  <script src="/libs/react-dom.production.min.js"></script>
+  <script src="/libs/axios.min.js"></script>
+  <script src="/libs/chart.min.js"></script>
+  <script src="/libs/tailwind.min.js"></script>
+  <script src="/libs/babel.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
     // Check if dependencies are loaded
     if (!window.React || !window.ReactDOM || !window.Chart || !window.axios) {
-      console.error('One or more dependencies (React, ReactDOM, Chart.js, Axios) failed to load. Check CDN availability.');
+      console.error('Required libraries failed to load. Ensure /libs folder contains all dependencies.');
       document.getElementById('root').innerHTML = '<p class="text-red-500">Error: Required libraries failed to load. Please check your network or try again later.</p>';
     } else {
       const { useState, useEffect, useRef } = React;
@@ -91,7 +92,7 @@
         useEffect(() => {
           const ctx = document.getElementById('gapChart')?.getContext('2d');
           if (!ctx || tokens.length === 0) {
-            console.warn('Chart canvas or tokens not ready yet.');
+            console.warn('Chart canvas or tokens not ready.');
             return;
           }
 
