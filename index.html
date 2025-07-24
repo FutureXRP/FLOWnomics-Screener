@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FLOWnomics Crypto Screener</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    // Check if dependencies are loaded
+    if (!window.React || !window.ReactDOM || !window.Chart || !window.axios) {
+      console.error('One or more dependencies (React, ReactDOM, Chart.js, Axios) failed to load. Check CDN availability.');
+      document.getElementById('root').innerHTML = '<p class="text-red-500">Error: Required libraries failed to load. Please check your network or try again later.</p>';
+    } else {
+      const { useState, useEffect, useRef } = React;
+
+      const FlowNomicsScreener = () => {
+        const [tokens, setTokens] = useState([]);
+        const [filter, setFilter] = useState({ metric: 'fairMarketGap', threshold: 0 });
+        const [loading, setLoading] = useState(true);
+        const chartRef = useRef(null);
+
+        // Mock data for testing
+        const fetchTokenData = async () => {
+          try {
+            const mockTokenData = [
+              {
+                symbol: 'XRP',
+                marketCap: 180000000000,
+                effectiveSupply: 50000000000,
+                asv: 500000000000,
+                velocity: 10
+              },
+              {
+                symbol: 'ETH',
+                marketCap: 300000000000,
+                effectiveSupply: 120000000,
+                asv: 1000000000000,
+                velocity: 8
+              }
+            ];
+            const tokensWithMetrics = mockTokenData.map(token => calculateMetrics(token));
+            setTokens(tokensWithMetrics);
+            setLoading(false);
+          } catch (error) {
+            console.error('Error processing data:', error.message);
+            setTokens([
+              {
+                symbol: 'XRP',
+                marketCap: 180000000000,
+                effectiveSupply: 50000000000,
+                asv: 500000000000,
+                velocity: 10,
+                flow: 0,
+                adjustedFlow: 0,
+                impliedPrice: 0,
+                fairMarketGap: 0
+              }
+            ]);
+            setLoading(false);
+          }
+        };
+
+        // Calculate FLOWnomics metrics
+        const calculateMetrics = (token) => {
+          const flow = token.asv / token.velocity;
+          const adjustedFlow = flow * 1.2;
+          const impliedPrice = adjustedFlow / token.effectiveSupply;
+          const fairMarketGap = ((impliedPrice - (token.marketCap / token.effectiveSupply)) / (token.marketCap / token.effectiveSupply)) * 100;
+          return {
+            ...token,
+            flow,
+            adjustedFlow,
+            impliedPrice,
+            fairMarketGap
+          };
+        };
+
+        useEffect(() => {
+          fetchTokenData();
+        }, []);
+
+        // Chart rendering
+        useEffect(() => {
+          const ctx = document.getElementById('gapChart')?.getContext('2d');
+          if (!ctx || tokens.length === 0) {
+            console.warn('Chart canvas or tokens not ready yet.');
+            return;
+          }
+
+          if (chartRef.current) {
+            chartRef.current.destroy();
+          }
+
+          try {
+            chartRef.current = new Chart(ctx, {
+              type: 'bar',
+              data: {
+                labels: tokens.map(t => t.symbol),
+                datasets: [{
+                  label: 'Fair Market Gap (%)',
+                  data: tokens.map(t => t.fairMarketGap || 0),
+                  backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                  borderColor: 'rgba(75, 192, 192, 1)',
+                  borderWidth: 1
+                }]
+              },
+              options: {
+                scales: {
+                  y: { beginAtZero: true }
+                }
+              }
+            });
+          } catch (error) {
+            console.error('Error initializing chart:', error.message);
+          }
+
+          return () => {
+            if (chartRef.current) {
+              chartRef.current.destroy();
+              chartRef.current = null;
+            }
+          };
+        }, [tokens]);
+
+        // Filter and sort tokens
+        const filteredTokens = tokens
+          .filter(token => (token[filter.metric] || 0) > filter.threshold)
+          .sort((a, b) => (b[filter.metric] || 0) - (a[filter.metric] || 0));
+
+        return (
+          <div className="container mx-auto p-4">
+            <h1 className="text-3xl font-bold mb-4">FLOWnomics Crypto Screener</h1>
+            <div className="mb-4">
+              <label className="mr-2">Filter by Metric:</label>
+              <select
+                className="border p-2"
+                value={filter.metric}
+                onChange={(e) => setFilter({ ...filter, metric: e.target.value })}
+              >
+                <option value="fairMarketGap">Fair Market Gap (%)</option>
+                <option value="impliedPrice">Implied Price</option>
+                <option value="flow">FLOW</option>
+              </select>
+              <input
+                type="number"
+                className="border p-2 ml-2"
+                placeholder="Threshold"
+                value={filter.threshold}
+                onChange={(e) => setFilter({ ...filter, threshold: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            {loading ? (
+              <p className="text-gray-500">Loading...</p>
+            ) : (
+              <table className="w-full border-collapse border">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border p-2">Token</th>
+                    <th className="border p-2">Market Cap ($)</th>
+                    <th className="border p-2">FLOW ($)</th>
+                    <th className="border p-2">Implied Price ($)</th>
+                    <th className="border p-2">Fair Market Gap (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTokens.map(token => (
+                    <tr key={token.symbol} className="hover:bg-gray-100">
+                      <td className="border p-2">{token.symbol}</td>
+                      <td className="border p-2">{token.marketCap.toLocaleString()}</td>
+                      <td className="border p-2">{token.flow.toLocaleString()}</td>
+                      <td className="border p-2">{token.impliedPrice.toFixed(2)}</td>
+                      <td className="border p-2">{token.fairMarketGap.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="mt-4">
+              <canvas id="gapChart" width="400" height="200"></canvas>
+            </div>
+          </div>
+        );
+      };
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<FlowNomicsScreener />);
+    }
+  </script>
+</body>
+</html>
